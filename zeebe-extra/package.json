@@ -93,7 +93,7 @@
 		"delay": "^4.3.0",
 		"jest": "^27.2.3",
 		"jest-environment-node-debug": "^2.0.0",
-		"typedoc": "^0.21.10"
+		"typedoc": "^0.25.0"
 	},
 	"author": {
 		"name": "Josh Wulf",
