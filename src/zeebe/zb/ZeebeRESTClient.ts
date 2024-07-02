@@ -15,11 +15,11 @@ import {
 	makeBeforeRetryHandlerFor401TokenRetry,
 } from '../../lib'
 import { IOAuthProvider } from '../../oauth'
-import { TopologyResponse } from '../types'
+import { ActivateJobsRequest, ActivatedJob, TopologyResponse } from '../types'
 
 const trace = debug('camunda:zeebe')
 
-const ZEEBE_REST_API_VERSION = 'v1'
+const ZEEBE_REST_API_VERSION = 'v2'
 
 /**
  * JSON object with changed task attribute values.
@@ -39,6 +39,7 @@ export class ZeebeRestClient {
 	private userAgentString: string
 	private oAuthProvider: IOAuthProvider
 	private rest: Promise<typeof got>
+	private tenantId: string | undefined
 	// private tenantId: string | undefined
 
 	constructor(options?: {
@@ -80,7 +81,7 @@ export class ZeebeRestClient {
 				})
 		)
 
-		// this.tenantId = config.CAMUNDA_TENANT_ID
+		this.tenantId = config.CAMUNDA_TENANT_ID
 	}
 
 	private async getHeaders() {
@@ -94,6 +95,19 @@ export class ZeebeRestClient {
 		}
 		trace('headers', headers)
 		return headers
+	}
+
+	public async activateJobs(req: ActivateJobsRequest): Promise<ActivatedJob[]> {
+		const headers = await this.getHeaders()
+		const tenantIds = req.tenantIds ?? this.tenantId ? [this.tenantId] : []
+		return this.rest.then((rest) =>
+			rest
+				.post('jobs/activation', {
+					headers,
+					body: JSON.stringify({ ...req, tenantIds }),
+				})
+				.json()
+		)
 	}
 
 	/* Get the topology of the Zeebe cluster. */
@@ -110,8 +124,10 @@ export class ZeebeRestClient {
 		) as Promise<TopologyResponse>
 	}
 
-	/* Completes a user task with the given key. The method either completes the task or throws 400, 404, or 409.
-	Documentation: https://docs.camunda.io/docs/apis-tools/zeebe-api-rest/specifications/complete-a-user-task/ */
+	/**
+	 * Completes a user task with the given key. The method either completes the task or throws 400, 404, or 409.
+	 * Documentation: https://docs.camunda.io/docs/apis-tools/zeebe-api-rest/specifications/complete-a-user-task/
+	 * */
 	public async completeUserTask({
 		userTaskKey,
 		variables = {},
@@ -133,7 +149,10 @@ export class ZeebeRestClient {
 		)
 	}
 
-	/* Assigns a user task with the given key to the given assignee. */
+	/**
+	 * Assigns a user task with the given key to the given assignee.
+	 * Documentation: https://docs.camunda.io/docs/apis-tools/zeebe-api-rest/specifications/assign-a-user-task/
+	 */
 	public async assignTask({
 		userTaskKey,
 		assignee,
@@ -159,7 +178,10 @@ export class ZeebeRestClient {
 		)
 	}
 
-	/** Update a user task with the given key. */
+	/**
+	 * Update a user task with the given key.
+	 * Documenation: https://docs.camunda.io/docs/apis-tools/zeebe-api-rest/specifications/update-a-user-task/
+	 */
 	public async updateTask({
 		userTaskKey,
 		changeset,
@@ -176,7 +198,11 @@ export class ZeebeRestClient {
 			})
 		)
 	}
-	/* Removes the assignee of a task with the given key. */
+
+	/**
+	 * Removes the assignee of a task with the given key.
+	 * Documentation: https://docs.camunda.io/docs/apis-tools/zeebe-api-rest/specifications/unassign-a-user-task/
+	 */
 	public async removeAssignee({ userTaskKey }: { userTaskKey: string }) {
 		const headers = await this.getHeaders()
 
